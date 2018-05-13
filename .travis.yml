@@ -1,0 +1,34 @@
+language: cpp
+compiler: g++
+sudo: false
+
+before_script:
+  #repositories
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - echo "deb http://archive.ubuntu.com/ubuntu xenial main universe" | sudo tee -a /etc/apt/sources.list
+  - sudo apt-get update -qq
+  #g++7
+  - sudo apt-get install g++-7 -qq
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 90
+  #openblas
+  - sudo apt-get install libopenblas-dev -y -qq
+  #boost
+  - sudo apt-get install libboost-system-dev -y -qq
+  #dlib
+  - cd dlib
+  - mkdir build
+  - cd build
+  - cmake ..
+  - sudo env "PATH=$PATH" cmake --build . --target install
+  - cd ../../; echo `pwd`
+
+script:
+  - cmake .
+  - cmake --build .
+  - cmake --build . --target package
+
+deploy:
+  - provider: script
+    skip_cleanup: true
+    script:
+    - curl -T realty-0.0.$TRAVIS_BUILD_NUMBER-Linux.deb -uevgenykol:$BINTRAY_API_KEY "https://api.bintray.com/content/evgenykol/otus_cpp_01/realty/$TRAVIS_BUILD_NUMBER/realty-0.0.$TRAVIS_BUILD_NUMBER-Linux.deb;deb_distribution=trusty;deb_component=main;deb_architecture=amd64;publish=1"
