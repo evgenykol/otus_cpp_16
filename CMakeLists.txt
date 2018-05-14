@@ -12,8 +12,9 @@ find_package(dlib REQUIRED)
 find_package(Boost COMPONENTS system REQUIRED)
 
 add_executable(rclst rclst.cpp)
+add_executable(rclss rclss.cpp)
 
-set_target_properties(rclst
+set_target_properties(rclst rclss
         PROPERTIES
                 CXX_STANDARD 14
                 CXX_STANDARD_REQUIRED ON
@@ -26,7 +27,12 @@ target_link_libraries(rclst
                         ${Boost_LIBRARIES}
 )
 
-install(TARGETS rclst  RUNTIME DESTINATION bin)
+target_link_libraries(rclss
+                        dlib::dlib
+                        ${Boost_LIBRARIES}
+)
+
+install(TARGETS rclst rclss RUNTIME DESTINATION bin)
 
 set(CPACK_GENERATOR DEB)
 
