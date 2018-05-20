@@ -1,29 +1,26 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <thread>
 
 #include <dlib/svm_threaded.h>
 #include <dlib/clustering.h>
 #include <dlib/rand.h>
 
-#include <boost/algorithm/string.hpp>
-
 #include "version.h"
+#include "rlib.h"
 
-//using namespace std;
 using namespace dlib;
 
-constexpr int crit_num = 7;
+using linear_kernel_type = linear_kernel<sample_type>;
 
-using sample_type = matrix<double,crit_num,1>;
-using kernel_type = linear_kernel<sample_type>;
 
 int main(int argc, char* argv[])
 {
     try
     {
-        kcentroid<kernel_type> kc(kernel_type(), 0.01, 8);
-        kkmeans<kernel_type> test(kc);
+        kcentroid<linear_kernel_type> kc(linear_kernel_type(), 0.01, 8);
+        kkmeans<linear_kernel_type> test(kc);
 
         std::vector<sample_type> samples;
         std::vector<sample_type> initial_centers;
@@ -52,61 +49,65 @@ int main(int argc, char* argv[])
         }
 
         //stdin data parsing
-        sample_type m;
         std::string line;
         freopen("dataset.csv", "rt", stdin);
         while(std::getline(std::cin, line))
         {
-            std::vector<std::string> tokens;
-            boost::trim(line);
-            boost::split(tokens, line, boost::is_any_of(";"));
-
-            for (int i = 0; i < crit_num - 1; ++i)
-            {
-                if(tokens.at(i).length() < 1)
-                {
-                    tokens.at(i) = "0.0";
-                }
-                m(i) = stod(tokens.at(i));
-            }
-            if ((tokens.at(6).length() < 1) || (tokens.at(7).length() < 1))
-            {
-                m(6) = 0;
-            }
-            else
-            {
-                m(6) = (stoi(tokens.at(6)) == stoi(tokens.at(7)));
-            }
-            samples.push_back(m);
+            input_string_to_samples(line, samples);
         }
-
         std::cout << "Parsing sucessfull!\n";
 
-        //clusterization
+
+        //clusterization & saving clusters to files
         test.set_number_of_centers(nclusters);
         pick_initial_centers(nclusters, initial_centers, samples, test.get_kernel());
         test.train(samples, initial_centers);
 
-        //std::ofstream of(modelfname);
+        std::vector<std::ofstream> ofs;
+        ofs.reserve(nclusters);
+        for(int i = 0; i < nclusters; ++i)
+        {
+            ofs.push_back(std::ofstream(modelfname + "." + std::to_string(i)));
+        }
 
+        labels.reserve(samples.size());
         for(auto &s : samples)
         {
-            labels.reserve(samples.size());
-            labels.push_back(test(s));
-            //of << s(0) << "; " << s(1) << ";  " << test(s) << "\n";
+            auto cluster = test(s);
+            labels.push_back(cluster);
+            ofs[cluster] << sample_to_string(s) << "\n";
         }
-        //of.close();
 
-        std::cout << "Clusterization sucsessful!  ";
-        std::cout << "samples: " << samples.size() << ", clusters: " << initial_centers.size() << ", lables: " << labels.size() << "\n";
+        for(auto &of : ofs)
+        {
+            of.close();
+        }
+
+        //file with number of clusters
+        std::ofstream of_num(modelfname + ".num");
+        of_num << nclusters << "\n";
+        of_num.close();
+
+        std::cout << "Clusterization sucsessful! ";
+        std::cout << "(samples: " << samples.size() << ", lables: " << labels.size() << ", clusters: " << initial_centers.size() << ")\n";
+
 
         //decision function generating
         using ovo_trainer = one_vs_one_trainer<any_trainer<sample_type>>;
         ovo_trainer trainer;
 
-        krr_trainer<kernel_type> linear_trainer;
-        linear_trainer.set_kernel(kernel_type());
-        trainer.set_trainer(linear_trainer);
+        using poly_kernel = polynomial_kernel<sample_type>;
+        using rbf_kernel = radial_basis_kernel<sample_type>;
+
+        krr_trainer<linear_kernel_type> krr_lin_trainer;
+        svm_nu_trainer<linear_kernel_type> svm_lin_trainer;
+
+        krr_lin_trainer.set_kernel(linear_kernel_type());
+        svm_lin_trainer.set_kernel(linear_kernel_type());
+        svm_lin_trainer.set_nu(0.00001);
+
+        trainer.set_trainer(krr_lin_trainer);
+        trainer.set_trainer(svm_lin_trainer, 1, 2);
 
         one_vs_one_decision_function<ovo_trainer> df = trainer.train(samples, labels);
 
@@ -116,9 +117,15 @@ int main(int argc, char* argv[])
 //        std::cout << "predicted label: "<< df(samples[22222])  << ", true label: "<< labels[22222] << std::endl;
         std::cout << "Training sucsessful! \n";
 
+
         //decision function serializing
-        auto ddf = df;
-        serialize(modelfname + ".df") << df;
+        one_vs_one_decision_function<ovo_trainer,
+        decision_function<linear_kernel_type>,  // This is the output of the poly_trainer
+        decision_function<linear_kernel_type>    // This is the output of the rbf_trainer
+        > df2;
+
+        df2 = df;
+        serialize(modelfname + ".df") << df2;
         std::cout << "Serializing sucsessful! \n";
     }
     catch (std::exception& e)
