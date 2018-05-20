@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 
         //stdin data parsing
         std::string line;
-        freopen("dataset.csv", "rt", stdin);
+        //freopen("dataset.csv", "rt", stdin);
         while(std::getline(std::cin, line))
         {
             input_string_to_samples(line, samples);

@@ -19,7 +19,7 @@ using df_type =
     decision_function<linear_kernel_type>>;
 
 void do_classification(const std::string &mfname_, int nclust_, df_type &df_, std::string &line_);
-double dist(double y1, double x1, double y2, double x2);
+double earth_dist(double y1, double x1, double y2, double x2);
 
 int main(int argc, char* argv[])
 {
@@ -65,6 +65,7 @@ int main(int argc, char* argv[])
 
         //read stdin and classify
         std::string line;
+        //freopen("test.txt", "rt", stdin);
         while(std::getline(std::cin, line))
         {
             do_classification(modelfname, nclusters, df, line);
@@ -76,41 +77,26 @@ int main(int argc, char* argv[])
     }
     return 0;
 }
-double earth_dist(double y1, double x1, double y2, double x2)
-{
-    //https://en.wikipedia.org/wiki/Great-circle_distance
-    using namespace std;
-
-    const double grad_to_rad = 0.0174533; //convertion from degress to radians
-    auto dx = (x2 - x1) * grad_to_rad;
-    auto dy = (y2 - y1) * grad_to_rad;
-
-    auto sq = pow(sin(dx/2), 2) + cos(x1*grad_to_rad) * cos(x2*grad_to_rad) * pow(sin(dy/2), 2);
-    auto dd = 2 * asin(sqrt(sq));
-    auto dist = dd * 6371; //Earth radius
-    return dist;
-}
 
 void do_classification(const std::string &mfname_, int nclust_, df_type &df_, std::string &line_)
 {
     sample_type sample;
     string_to_sample(line_, sample);
 
-    auto cluster = df_(sample);
-    std::cout << "cluster: " << cluster << " of " << nclust_ << std::endl;
+    unsigned long cluster = df_(sample);
+    //std::cout << "cluster: " << cluster << " of " << nclust_ << std::endl;
 
     if(cluster > nclust_ - 1)
     {
-        //std::cout << "classification error, no such cluster!\n";
         throw std::logic_error("classification error, no such cluster!");
     }
 
     //reading cluster data from file
-    std::ifstream ifs(mfname_ + "." + std::to_string(cluster));
+    std::string clustfname = mfname_ + "." + std::to_string(cluster);
+    std::ifstream ifs(clustfname);
     if(!ifs.is_open())
     {
-        //std::cout << "cluster data file doesn't exist! \n";
-        throw std::logic_error("cluster data file doesn't exist!");
+        throw std::logic_error("cluster data file doesn't exist: " + clustfname);
     }
 
     std::vector<sample_type> cluster_samples;
@@ -130,9 +116,24 @@ void do_classification(const std::string &mfname_, int nclust_, df_type &df_, st
     }
             );
 
-    std::cout << "\nnearest flats:\n";
+    //std::cout << "\nnearest flats:\n";
     for(auto &s : cluster_samples)
     {
         std::cout << sample_to_string(s) << "\t distance: " << earth_dist(sample(0), sample(1), s(0), s(1)) << "\n";
     }
+}
+
+double earth_dist(double y1, double x1, double y2, double x2)
+{
+    //https://en.wikipedia.org/wiki/Great-circle_distance
+    using namespace std;
+
+    const double grad_to_rad = 0.0174533; //convertion from degress to radians
+    auto dx = (x2 - x1) * grad_to_rad;
+    auto dy = (y2 - y1) * grad_to_rad;
+
+    auto sq = pow(sin(dx/2), 2) + cos(x1*grad_to_rad) * cos(x2*grad_to_rad) * pow(sin(dy/2), 2);
+    auto dd = 2 * asin(sqrt(sq));
+    auto dist = dd * 6371; //Earth radius
+    return dist;
 }
