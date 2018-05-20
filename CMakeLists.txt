@@ -10,6 +10,9 @@ project(realty VERSION 0.0.$ENV{TRAVIS_BUILD_NUMBER})
 configure_file(version.h.in version.h)
 find_package(dlib REQUIRED)
 
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 add_executable(rclst rclst.cpp)
 add_executable(rclss rclss.cpp)
 
