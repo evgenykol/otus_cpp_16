@@ -41,3 +41,19 @@ std::string sample_to_string(const sample_type &sample)
     return result;
 }
 
+void string_to_sample(std::string &line, sample_type &sample)
+{
+    std::vector<std::string> tokens;
+    boost::trim(line);
+    boost::split(tokens, line, boost::is_any_of(";"));
+
+    for (int i = 0; i < crit_num - 1; ++i)
+    {
+        if(tokens.at(i).length() < 1)
+        {
+            tokens.at(i) = "0.0";
+        }
+        sample(i) = stod(tokens.at(i));
+    }
+}
+

@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
-#include <thread>
 
 #include <dlib/svm_threaded.h>
 #include <dlib/clustering.h>
@@ -13,7 +12,6 @@
 using namespace dlib;
 
 using linear_kernel_type = linear_kernel<sample_type>;
-
 
 int main(int argc, char* argv[])
 {
@@ -40,11 +38,18 @@ int main(int argc, char* argv[])
         {
             nclusters = atoi(argv[1]);
             modelfname = argv[2];
+
+            if(nclusters < 3)
+            {
+                std::cout << "enter more clusters! \n";
+                return 1;
+            }
+
             std::cout << "rclst num clusters: " << nclusters << ", model file name: " << modelfname << std::endl;
         }
         else
         {
-            std::cerr << "Usage: kkmeans <nclusters> <modelfname>\n";
+            std::cerr << "Usage: rclst <nclusters> <modelfname>\n";
             return 1;
         }
 
@@ -132,6 +137,7 @@ int main(int argc, char* argv[])
     {
         std::cerr << "Exception: " << e.what() << "\n";
     }
+    return 0;
 }
 
 
