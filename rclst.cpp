@@ -17,9 +17,6 @@ int main(int argc, char* argv[])
 {
     try
     {
-        kcentroid<linear_kernel_type> kc(linear_kernel_type(), 0.01, 8);
-        kkmeans<linear_kernel_type> test(kc);
-
         std::vector<sample_type> samples;
         std::vector<sample_type> initial_centers;
         std::vector<double> labels;
@@ -63,10 +60,19 @@ int main(int argc, char* argv[])
         std::cout << "Parsing sucessfull!\n";
 
 
+
         //clusterization & saving clusters to files
-        test.set_number_of_centers(nclusters);
-        pick_initial_centers(nclusters, initial_centers, samples, test.get_kernel());
-        test.train(samples, initial_centers);
+        using ovo_trainer = one_vs_one_trainer<any_trainer<sample_type>>;
+        ovo_trainer trainer;
+        svr_linear_trainer<linear_kernel_type> linear_trainer;
+
+        linear_kernel_type kernel;
+        trainer.set_trainer(linear_trainer);
+
+        pick_initial_centers(nclusters, initial_centers, samples, kernel);
+        std::vector<unsigned long> assignments = spectral_cluster(kernel, samples, nclusters);
+        std::cout << "Spectral cluster sucessfull! Assignments size = " << assignments.size()  <<
+                  " samples number = " << samples.size() << std::endl;
 
         std::vector<std::ofstream> ofs;
         ofs.reserve(nclusters);
@@ -76,11 +82,11 @@ int main(int argc, char* argv[])
         }
 
         labels.reserve(samples.size());
-        for(auto &s : samples)
+        for(auto i = 0; i < samples.size(); ++i)
         {
-            auto cluster = test(s);
-            labels.push_back(cluster);
-            ofs[cluster] << sample_to_string(s) << "\n";
+            auto label = assignments[i];
+            labels.push_back(label);
+            ofs[label] << sample_to_string(samples[i]) << "\n";
         }
 
         for(auto &of : ofs)
@@ -98,39 +104,23 @@ int main(int argc, char* argv[])
 
 
         //decision function generating
-        using ovo_trainer = one_vs_one_trainer<any_trainer<sample_type>>;
-        ovo_trainer trainer;
+        one_vs_one_decision_function<ovo_trainer, decision_function<linear_kernel_type>> df = trainer.train(samples, labels);
 
-        using poly_kernel = polynomial_kernel<sample_type>;
-        using rbf_kernel = radial_basis_kernel<sample_type>;
-
-        krr_trainer<linear_kernel_type> krr_lin_trainer;
-        svm_nu_trainer<linear_kernel_type> svm_lin_trainer;
-
-        krr_lin_trainer.set_kernel(linear_kernel_type());
-        svm_lin_trainer.set_kernel(linear_kernel_type());
-        svm_lin_trainer.set_nu(0.00001);
-
-        trainer.set_trainer(krr_lin_trainer);
-        trainer.set_trainer(svm_lin_trainer, 1, 2);
-
-        one_vs_one_decision_function<ovo_trainer> df = trainer.train(samples, labels);
-
-//        std::cout << "predicted label: "<< df(samples[0])  << ", true label: "<< labels[0] << std::endl;
-//        std::cout << "predicted label: "<< df(samples[100])  << ", true label: "<< labels[100] << std::endl;
-//        std::cout << "predicted label: "<< df(samples[3333])  << ", true label: "<< labels[3333] << std::endl;
-//        std::cout << "predicted label: "<< df(samples[22222])  << ", true label: "<< labels[22222] << std::endl;
+        std::cout << "predicted label: "<< df(samples[0])  << ", true label: "<< labels[0] << std::endl;
+        std::cout << "predicted label: "<< df(samples[100])  << ", true label: "<< labels[100] << std::endl;
+        std::cout << "predicted label: "<< df(samples[3333])  << ", true label: "<< labels[3333] << std::endl;
+        std::cout << "predicted label: "<< df(samples[22222])  << ", true label: "<< labels[22222] << std::endl;
         std::cout << "Training sucsessful! \n";
 
 
-        //decision function serializing
-        one_vs_one_decision_function<ovo_trainer,
-        decision_function<linear_kernel_type>,  // This is the output of the poly_trainer
-        decision_function<linear_kernel_type>    // This is the output of the rbf_trainer
-        > df2;
+//        //decision function serializing
+//        one_vs_one_decision_function<ovo_trainer,
+//        decision_function<linear_kernel_type>,  // This is the output of the poly_trainer
+//        decision_function<linear_kernel_type>    // This is the output of the rbf_trainer
+//        > df2;
 
-        df2 = df;
-        serialize(modelfname + ".df") << df2;
+//        df2 = df;
+        serialize(modelfname + ".df") << df;
         std::cout << "Serializing sucsessful! \n";
     }
     catch (std::exception& e)

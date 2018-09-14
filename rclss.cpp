@@ -14,9 +14,7 @@ using namespace dlib;
 using linear_kernel_type = linear_kernel<sample_type>;
 using ovo_trainer = one_vs_one_trainer<any_trainer<sample_type>>;
 using df_type =
-    one_vs_one_decision_function<ovo_trainer,
-    decision_function<linear_kernel_type>,
-    decision_function<linear_kernel_type>>;
+    one_vs_one_decision_function<ovo_trainer, decision_function<linear_kernel_type>>;
 
 void do_classification(const std::string &mfname_, int nclust_, df_type &df_, std::string &line_);
 double earth_dist(double y1, double x1, double y2, double x2);
@@ -84,7 +82,7 @@ void do_classification(const std::string &mfname_, int nclust_, df_type &df_, st
     string_to_sample(line_, sample);
 
     unsigned long cluster = df_(sample);
-    //std::cout << "cluster: " << cluster << " of " << nclust_ << std::endl;
+    std::cout << "cluster: " << cluster << " of " << nclust_ << std::endl;
 
     if(cluster > nclust_ - 1)
     {
