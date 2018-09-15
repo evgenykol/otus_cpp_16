@@ -11,12 +11,7 @@
 
 using namespace dlib;
 
-using linear_kernel_type = linear_kernel<sample_type>;
-using ovo_trainer = one_vs_one_trainer<any_trainer<sample_type>>;
-using df_type =
-    one_vs_one_decision_function<ovo_trainer, decision_function<linear_kernel_type>>;
-
-void do_classification(const std::string &mfname_, int nclust_, df_type &df_, std::string &line_);
+void do_classification(const std::string &mfname_, int nclust_, ovo_df_type &df_, std::string &line_);
 double earth_dist(double y1, double x1, double y2, double x2);
 
 int main(int argc, char* argv[])
@@ -58,12 +53,12 @@ int main(int argc, char* argv[])
         }
 
         //reading decision function
-        df_type df;
+        ovo_df_type df;
         deserialize(modelfname + ".df") >> df;
 
         //read stdin and classify
         std::string line;
-        //freopen("test.txt", "rt", stdin);
+        freopen("test.txt", "rt", stdin);
         while(std::getline(std::cin, line))
         {
             do_classification(modelfname, nclusters, df, line);
@@ -76,12 +71,12 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void do_classification(const std::string &mfname_, int nclust_, df_type &df_, std::string &line_)
+void do_classification(const std::string &mfname_, int nclust_, ovo_df_type &df_, std::string &line_)
 {
     sample_type sample;
     string_to_sample(line_, sample);
 
-    unsigned long cluster = df_(sample);
+    unsigned long cluster = (unsigned long) (df_(sample));
     std::cout << "cluster: " << cluster << " of " << nclust_ << std::endl;
 
     if(cluster > nclust_ - 1)
@@ -114,7 +109,7 @@ void do_classification(const std::string &mfname_, int nclust_, df_type &df_, st
     }
             );
 
-    //std::cout << "\nnearest flats:\n";
+    std::cout << "\nnearest flats:\n";
     for(auto &s : cluster_samples)
     {
         std::cout << sample_to_string(s) << "\t distance: " << earth_dist(sample(0), sample(1), s(0), s(1)) << "\n";

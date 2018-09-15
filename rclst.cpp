@@ -2,8 +2,6 @@
 #include <vector>
 #include <fstream>
 
-#include <dlib/svm_threaded.h>
-#include <dlib/clustering.h>
 #include <dlib/rand.h>
 
 #include "version.h"
@@ -11,7 +9,6 @@
 
 using namespace dlib;
 
-using linear_kernel_type = linear_kernel<sample_type>;
 
 int main(int argc, char* argv[])
 {
@@ -60,19 +57,14 @@ int main(int argc, char* argv[])
         std::cout << "Parsing sucessfull!\n";
 
 
-
         //clusterization & saving clusters to files
-        using ovo_trainer = one_vs_one_trainer<any_trainer<sample_type>>;
-        ovo_trainer trainer;
-        svr_linear_trainer<linear_kernel_type> linear_trainer;
+        kcentroid<linear_kernel_type> kc(linear_kernel_type(), 0.01, 8);
+        kkmeans<linear_kernel_type> test(kc);
 
-        linear_kernel_type kernel;
-        trainer.set_trainer(linear_trainer);
-
-        pick_initial_centers(nclusters, initial_centers, samples, kernel);
-        std::vector<unsigned long> assignments = spectral_cluster(kernel, samples, nclusters);
-        std::cout << "Spectral cluster sucessfull! Assignments size = " << assignments.size()  <<
-                  " samples number = " << samples.size() << std::endl;
+        test.set_number_of_centers(nclusters);
+        pick_initial_centers(nclusters, initial_centers, samples, test.get_kernel());
+        find_clusters_using_kmeans(samples, initial_centers);
+        test.train(samples, initial_centers);
 
         std::vector<std::ofstream> ofs;
         ofs.reserve(nclusters);
@@ -82,11 +74,11 @@ int main(int argc, char* argv[])
         }
 
         labels.reserve(samples.size());
-        for(auto i = 0; i < samples.size(); ++i)
+        for(auto &s : samples)
         {
-            auto label = assignments[i];
-            labels.push_back(label);
-            ofs[label] << sample_to_string(samples[i]) << "\n";
+            auto cluster = test(s);
+            labels.push_back(cluster);
+            ofs[cluster] << sample_to_string(s) << "\n";
         }
 
         for(auto &of : ofs)
@@ -104,7 +96,11 @@ int main(int argc, char* argv[])
 
 
         //decision function generating
-        one_vs_one_decision_function<ovo_trainer, decision_function<linear_kernel_type>> df = trainer.train(samples, labels);
+        ovo_trainer_type ovo_trainer;
+
+        krr_trainer<linear_kernel_type> krr_lin_trainer;
+        ovo_trainer.set_trainer(krr_lin_trainer);
+        ovo_df_type df = ovo_trainer.train(samples, labels);
 
         std::cout << "predicted label: "<< df(samples[0])  << ", true label: "<< labels[0] << std::endl;
         std::cout << "predicted label: "<< df(samples[100])  << ", true label: "<< labels[100] << std::endl;
@@ -113,13 +109,7 @@ int main(int argc, char* argv[])
         std::cout << "Training sucsessful! \n";
 
 
-//        //decision function serializing
-//        one_vs_one_decision_function<ovo_trainer,
-//        decision_function<linear_kernel_type>,  // This is the output of the poly_trainer
-//        decision_function<linear_kernel_type>    // This is the output of the rbf_trainer
-//        > df2;
-
-//        df2 = df;
+        //decision function serializing
         serialize(modelfname + ".df") << df;
         std::cout << "Serializing sucsessful! \n";
     }
