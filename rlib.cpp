@@ -31,7 +31,7 @@ void input_string_to_samples(std::string &line, std::vector<sample_type> &sample
 std::string sample_to_string(const sample_type &sample)
 {
     std::string result;
-    for(int i = 0; i < crit_num - 2; ++i)
+    for(int i = 0; i < crit_num - 1; ++i)
     {
         result += std::to_string(sample(i)) + ";";
     }
@@ -41,11 +41,17 @@ std::string sample_to_string(const sample_type &sample)
     return result;
 }
 
-void string_to_sample(std::string &line, sample_type &sample)
+bool string_to_sample(std::string &line, sample_type &sample)
 {
     std::vector<std::string> tokens;
     boost::trim(line);
     boost::split(tokens, line, boost::is_any_of(";"));
+
+    if(tokens.size() < crit_num - 1)
+    {
+        std::cout << "Bad input string format!\n";
+        return false;
+    }
 
     for (int i = 0; i < crit_num - 1; ++i)
     {
@@ -55,5 +61,6 @@ void string_to_sample(std::string &line, sample_type &sample)
         }
         sample(i) = stod(tokens.at(i));
     }
+    return true;
 }
 

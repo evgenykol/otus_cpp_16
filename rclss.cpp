@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 
         //read stdin and classify
         std::string line;
-        freopen("test.txt", "rt", stdin);
+        //freopen("test.txt", "rt", stdin);
         while(std::getline(std::cin, line))
         {
             do_classification(modelfname, nclusters, df, line);
@@ -74,7 +74,10 @@ int main(int argc, char* argv[])
 void do_classification(const std::string &mfname_, int nclust_, ovo_df_type &df_, std::string &line_)
 {
     sample_type sample;
-    string_to_sample(line_, sample);
+    if(!string_to_sample(line_, sample))
+    {
+        return;
+    }
 
     unsigned long cluster = (unsigned long) (df_(sample));
     std::cout << "cluster: " << cluster << " of " << nclust_ << std::endl;
@@ -109,11 +112,12 @@ void do_classification(const std::string &mfname_, int nclust_, ovo_df_type &df_
     }
             );
 
-    std::cout << "\nnearest flats:\n";
+    std::cout << "nearest flats:\n";
     for(auto &s : cluster_samples)
     {
         std::cout << sample_to_string(s) << "\t distance: " << earth_dist(sample(0), sample(1), s(0), s(1)) << "\n";
     }
+    std::cout << std::endl;
 }
 
 double earth_dist(double y1, double x1, double y2, double x2)
